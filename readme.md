@@ -158,6 +158,8 @@ d_model = 512
 hidden_dim = 1024
 norm_shape = [seq_len, d_model]
 ```
+### wramup训练
+动态变化学习率,在刚开始训练时大幅降低学习率,随epoch减弱减低幅度
 
 ### 训练结果
 
@@ -172,10 +174,11 @@ norm_shape = [seq_len, d_model]
 - 我在写生成位置向量函数时使用了np和tensor.form_numpy(),而np生成的是64位的数,tensor.form_numpy()的dtype是float64(很无语),于是出现了数据类型不一致的问题而反复报错,最后使用tensor.form_numpy().float()让数据一致
 - AddNorm,这个层我后来才发现其实可以不用写一个类,当初也想了半天,不知道怎么把前馈网络和多头注意力层放到AddNorm中间残差,这明显是经验不足的问题,又浪费时间又写了没用的代码.
 - bpe分词我现在还不会,测试集不知道怎么分成bpe,模型跑出来的句子还是分词后的,不知道怎么变成完整的句子
-- 没有显卡,gpu调试很不方便,而且只能白嫖一个服务器训练
+- 没有显卡,gpu调试很不方便,而且只能白嫖colab训练,出了问题得先在本地找问题改代码,然后push到github,然后再colab上Git clone,太折磨了
 - 模型里新生成的tensor要放入对应的device里,不然也会有报错,比如在GPU上跑是数据在GPU上,此时新生成的位置编码默认在cpu上,会发生错误
 - 以前没写过NLP,模型train和eval直接抄别人的了,测试集上的ppl因为分词问题搞不出来
 - paperswithcode上MT的指标好像是BLEU,不过我不会
+- 可能是初始化的问题第一轮ppl达到了8000多,原因未知
 
 
 

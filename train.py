@@ -142,7 +142,7 @@ def train():
                 count_loss += 1
             if testloss > float(total_loss / count_loss):
                 testloss = float(total_loss / count_loss)
-                torch.save(model.state_dict(), "./weight/de_to_en_test.pkl")
+                torch.save(model.state_dict(), "./weights/de_to_en_test.pkl")
             print(f'\nValidating at epoch', '%04d:' % (epoch + 1), 'loss:',
                   '{:.6f},'.format(total_loss / count_loss),
                   'ppl:', '{:.6}'.format(math.exp(total_loss / count_loss)), 'valid_accuracy:',
@@ -154,12 +154,13 @@ def train():
             v_acc = valid_accuracy / validstep
             valid_result.append([loss1,ppl,v_acc])
         
-        torch.save(model.state_dict(), "./weight/de2en_" + str(epoch) + ".pkl")
+        torch.save(model.state_dict(), "./weights/de2en_" + str(epoch) + ".pkl")
 
 
 def calculate_accuracy(model_predict, target, ignore_index=0):
     # target中 非0的地方填充为1
     non_pad_mask = target.ne(ignore_index)
+    # target中 unk的地方也不算
     # 得到target中1的数量，即有效的词的数量
     word_num = non_pad_mask.sum().item()
     # 得到预测正确的数量

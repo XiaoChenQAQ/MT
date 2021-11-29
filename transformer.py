@@ -46,7 +46,7 @@ class EmdAndPos(nn.Module):
         # print(X.dtype,self.pos.dtype)
         # print((X+self.pos.float()).dtype)
         # print("*"*80)
-        X = X * math.sqrt(self.emb_size)
+        # X = X * math.sqrt(self.emb_size)
         return X+self.pos.float()
 
 
