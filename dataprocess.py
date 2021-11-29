@@ -38,7 +38,7 @@ class Tokenizer:
         print("from token list(len({0}),make a dict(len({1})))".format(len(list_token),len(token2index)))
         return token2index,index2token
         
-    def encoder_sentence(self, sentences, max_len=256):
+    def encoder_sentence(self, sentences, max_len=32):
         '''把句子编码并pad'''
         seq = []
         for sentence in sentences:
@@ -88,6 +88,7 @@ class Tokenizer:
         depadding,
         '''
         ...
+    
 # 构建数据集
 # 张译有很好的,但我看不懂
 class MyData(Data.Dataset):

@@ -352,11 +352,12 @@ if __name__ == '__main__':
     import numpy as np
 
     model = Transformer(6, 6, 6,4,512,[6,512])
+    model.to(device)
     a = np.array([[1, 2, 3, 4, 5, 0], [2, 3, 4, 2, 1, 0]])
-    a = torch.IntTensor(a)
+    a = torch.IntTensor(a).to(device)
 
     b = np.array([[2, 2, 2, 2, 0, 0], [3, 3, 3, 3, 3, 0]])
-    b = torch.IntTensor(b)
+    b = torch.IntTensor(b).to(device)
     #print(model)
     out = model(a, b)
     print(out)

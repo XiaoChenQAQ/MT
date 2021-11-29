@@ -46,7 +46,7 @@ class Logger(object):
 def train():
     sys.stdout = Logger("training.log")
     testloss = 0
-    batch_size = 1024
+    batch_size = 512
     lr = 0.0001
     dict_number = 10148
     epochs = 15
