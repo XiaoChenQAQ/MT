@@ -1,6 +1,5 @@
 import numpy as np
 from torch.utils import data as Data
-
 class Tokenizer:
     '''
     需要完成的方法:
@@ -44,6 +43,9 @@ class Tokenizer:
         for sentence in sentences:
             encoder = []
             for word in sentence.rstrip().split(" "):
+                if word not in self.token2index:
+                    encoder.append(self.token2index["<unk>"])
+                else:
                     encoder.append(self.token2index[word])
             encoder.append(self.token2index["<eos>"])
             encoder.insert(0, self.token2index["<sos>"])
@@ -123,7 +125,10 @@ class MyData(Data.Dataset):
 if __name__ == '__main__':
     print('hello')
     token = Tokenizer()
-    data = token.encoder_sentence(["und sie fi@@ cht natürlich die wichtigste voraus@@ setzung von allen an , dass geschäft geschäft ist , und phil@@ anth@@ rop@@ ie ist das instrument der menschen , die die welt verändern wollen ."])
+    data = token.encoder_sentence(["und molecul@@ fi@@ cht natürlich die wichtigste voraus@@ setzung von allen an , dass geschäft geschäft ist , und phil@@ anth@@ rop@@ ie ist das instrument der menschen , die die welt verändern wollen ."])
+    data2 = token.encoder_sentence(["molecul@@ molecul@@ molecul@@ molecul@@ molecul@@ molecul@@ molecul@@"])
     print(data)
+    print(data2)
     data = token.padding(data)
+    
     print(data)
