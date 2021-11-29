@@ -4,6 +4,7 @@ import numpy as np
 import math
 from torch.nn.parameter import Parameter
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class EmdAndPos(nn.Module):
     '''
     处理好的句子序列,并给他加上position编码
@@ -35,7 +36,8 @@ class EmdAndPos(nn.Module):
                 return math.cos(pos / (10000**(1.0*(i-1)/emb_size)))
         for xy,val in np.ndenumerate(PE):
             PE[xy]= func(xy[0], xy[1], emb_size)
-        pos_matrix = torch.from_numpy(PE)
+        #新的tensor要注意device
+        pos_matrix = torch.from_numpy(PE).to(device)
         return pos_matrix
 
     def forward(self, inputs):
@@ -79,7 +81,7 @@ class MultiHeadAttention(nn.Module):
         if not decode:
             self.mask = None
         else:
-            self.mask = self._make_mask(seq_len)
+            self.mask = self._make_mask(seq_len).to(device)
         self.softmax = nn.Softmax(dim=-1)
             
 
@@ -340,7 +342,9 @@ class Transformer(nn.Module):
     
     def forward(self, enc_seq, dec_seq, *args):
         enc_mask = self._make_padding_mask(enc_seq, self.seq_len)
+        enc_mask = enc_mask.to(device)
         enc_outputs = self.encoder(enc_seq,enc_mask, *args)
+        enc_mask = enc_mask.to(device)
         dec_mask = self._make_padding_mask(dec_seq, self.seq_len)
         return self.decoder(dec_seq, enc_outputs, dec_mask, enc_mask)
 
