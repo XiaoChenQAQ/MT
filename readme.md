@@ -4,8 +4,6 @@
 
 ## 结果展示
 
-
-
 ```
 
 ```
@@ -159,9 +157,54 @@ hidden_dim = 1024
 norm_shape = [seq_len, d_model]
 ```
 ### wramup训练
-动态变化学习率,在刚开始训练时大幅降低学习率,随epoch减弱减低幅度
+动态变化学习率,在刚开始训练时大幅降低学习率,随epoch减弱减低幅度.
+可以帮助模型更快的收敛而不是不断震荡
 
 ### 训练结果
+虽然句子长度选的短就32截断了很多句子,但是感觉ppl的计算有点问题
+```
+Validating at epoch 0002: loss: 9.050756, ppl: 8524.98
+step= 15
+
+Validating at epoch 0003: loss: 7.819238, ppl: 2488.01
+step= 15
+
+Validating at epoch 0004: loss: 6.188854, ppl: 487.287,
+step= 15
+
+Validating at epoch 0005: loss: 5.540467, ppl: 254.797,
+step= 15
+
+Validating at epoch 0006: loss: 4.841723, ppl: 126.687,
+step= 15
+
+Validating at epoch 0007: loss: 4.001035, ppl: 54.6547,
+step= 15
+
+Validating at epoch 0008: loss: 3.073742, ppl: 21.6227,
+step= 15
+
+Validating at epoch 0009: loss: 2.307232, ppl: 10.0466,
+step= 15
+
+Validating at epoch 0010: loss: 1.733115, ppl: 5.65825,
+step= 15
+
+Validating at epoch 0011: loss: 1.251509, ppl: 3.49561,
+step= 15
+
+Validating at epoch 0012: loss: 0.794980, ppl: 2.2144,
+step= 15
+
+Validating at epoch 0013: loss: 0.495874, ppl: 1.64193,
+step= 15
+
+Validating at epoch 0014: loss: 0.315098, ppl: 1.37039,
+step= 15
+
+Validating at epoch 0015: loss: 0.225537, ppl: 1.253,
+step= 15
+```
 
 
 
@@ -185,6 +228,7 @@ norm_shape = [seq_len, d_model]
 ##参考文献
 
 [1]Vaswani A, Shazeer N, Parmar N, et al. Attention is all you need[C]//Advances in neural information processing systems. 2017: 5998-6008.
-
+[2]肖桐 朱靖波，机器翻译：基础与模型，电子工业出版社, 2021.
+[3]https://zh-v2.d2l.ai/chapter_attention-mechanisms/transformer.html
 
 
