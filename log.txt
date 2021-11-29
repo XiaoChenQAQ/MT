@@ -1,0 +1,63 @@
+#first 
+from token list(len(10144),make a dict(len(10148)))
+from token list(len(10144),make a dict(len(10148)))
+********************************************************************************
+training
+
+Validating at epoch 0002: loss: 9.049696, ppl: 8515.95 valid_accuracy: 6.0482%,
+step= 15
+
+# 2
+from token list(len(10144),make a dict(len(10148)))
+from token list(len(10144),make a dict(len(10148)))
+********************************************************************************
+training
+
+Validating at epoch 0002: loss: 9.049696, ppl: 8515.95 valid_accuracy: 6.0482%,
+step= 15
+from token list(len(10144),make a dict(len(10148)))
+from token list(len(10144),make a dict(len(10148)))
+********************************************************************************
+training
+
+Validating at epoch 0002: loss: 9.050756, ppl: 8524.98 valid_accuracy: 5.4841%,
+step= 15
+
+Validating at epoch 0003: loss: 7.819238, ppl: 2488.01 valid_accuracy: 7.7312%,
+step= 15
+
+Validating at epoch 0004: loss: 6.188854, ppl: 487.287 valid_accuracy: 12.1240%,
+step= 15
+
+Validating at epoch 0005: loss: 5.540467, ppl: 254.797 valid_accuracy: 15.6450%,
+step= 15
+
+Validating at epoch 0006: loss: 4.841723, ppl: 126.687 valid_accuracy: 22.8953%,
+step= 15
+
+Validating at epoch 0007: loss: 4.001035, ppl: 54.6547 valid_accuracy: 39.5907%,
+step= 15
+
+Validating at epoch 0008: loss: 3.073742, ppl: 21.6227 valid_accuracy: 56.1065%,
+step= 15
+
+Validating at epoch 0009: loss: 2.307232, ppl: 10.0466 valid_accuracy: 66.3324%,
+step= 15
+
+Validating at epoch 0010: loss: 1.733115, ppl: 5.65825 valid_accuracy: 75.9120%,
+step= 15
+
+Validating at epoch 0011: loss: 1.251509, ppl: 3.49561 valid_accuracy: 84.9604%,
+step= 15
+
+Validating at epoch 0012: loss: 0.794980, ppl: 2.2144 valid_accuracy: 92.5470%,
+step= 15
+
+Validating at epoch 0013: loss: 0.495874, ppl: 1.64193 valid_accuracy: 96.7089%,
+step= 15
+
+Validating at epoch 0014: loss: 0.315098, ppl: 1.37039 valid_accuracy: 98.0956%,
+step= 15
+
+Validating at epoch 0015: loss: 0.225537, ppl: 1.253 valid_accuracy: 98.5195%,
+step= 15
