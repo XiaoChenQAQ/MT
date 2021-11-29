@@ -11,6 +11,7 @@ from dataprocess import MyData,Tokenizer
 from transformer import Transformer
 from tqdm import tqdm
 import math
+import sys
 
 
 
@@ -27,10 +28,23 @@ valid_de = data_path+"valid_de.txt"
 valid_en = data_path+"valid_en.txt"
 print("file path:"+valid_en)
 
+#结果保存
+class Logger(object):
+    def __init__(self, filename='default.log', add_flag=True, stream=sys.stdout):
+        self.terminal = sys.stdout
+        self.log = open(filename,'a')
+
+    def write(self,message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        pass
 
 
 
 def train():
+    sys.stdout = Logger("training.log")
     testloss = 0
     batch_size = 1024
     lr = 0.0001
@@ -93,6 +107,7 @@ def train():
             else:
                 old_loss_time += loss
                 loss_time = old_loss_time / (step + 1)
+            
             s = (
                 "train ===> epoch: {} ---- step: {} ---- loss: {:.4f} ---- loss_time: {:.4f} ---- train_accuracy: {:.4f}% ---- lr: {:.6f}".format(
                     epoch, step, loss,
@@ -108,6 +123,7 @@ def train():
         total_loss = 0
         count_loss = 0
         valid_accuracy = 0
+        valid_result = []
         with torch.no_grad():
             for x, x_y, y in valid_data:
                 validstep += 1
@@ -132,6 +148,12 @@ def train():
                   'ppl:', '{:.6}'.format(math.exp(total_loss / count_loss)), 'valid_accuracy:',
                   '{:.4f}%,'.format(valid_accuracy / validstep))
             print("step=", validstep)
+
+            loss1 = total_loss / count_loss
+            ppl = math.exp(total_loss / count_loss)
+            v_acc = valid_accuracy / validstep
+            valid_result.append([loss1,ppl,v_acc])
+        
         torch.save(model.state_dict(), "./weight/de2en_" + str(epoch) + ".pkl")
 
 

@@ -102,7 +102,7 @@ self.W_V = nn.Parameter(data=torch.tensor(heads, d_model, d_v//heads),requires_g
 self.register_parameter('multihead_proj_weight', None)
 ```
 这样切分后的qkv向量进行运算后在连接起来可以获得一个(1,heads*d_k)的向量并且(heads*d_k=d_model),对输出向量右乘一个输出矩阵W(d_model,d_model)获得最终多头注意力机制的score.
-**但这样写的权重好像不会参与训练,所以我按照d2l里的多头网络写法改写了多头注意力的分片方法**
+**但这样写的权重好像不会参与训练,所以我按照[d2l](https://zh-v2.d2l.ai/chapter_attention-mechanisms/transformer.html)里的多头网络写法改写了多头注意力的分片方法**
 
 新的方法实现方法是:将变换后的QKV使用一个变换函数分片(而不是用不同的权重去成),然后直接应用点积注意力机制计算,最后再逆变换回原来的shape.通过一个线性层输出
 最终输出的矩阵O大小应为(batch_size, seq_len, d_model),并且为了方便显示注意力机制也可以输出一个注意力权重矩阵.
@@ -161,6 +161,8 @@ norm_shape = [seq_len, d_model]
 
 ### 训练结果
 
+
+
 ## 完成项目时遇到的困难
 这是本人的第一个NLP的深度学习项目,写一个Transformer模型对我来说是一个相当有挑战型的问题,不出意外的是做这个项目的时候出现了各种各样的问题,
 - 在写多头神经网络时,发现matmul,bmm和@对不同tensor.shape的效果是不同的,
@@ -176,6 +178,8 @@ norm_shape = [seq_len, d_model]
 
 
 ##参考文献
+
+[1]Vaswani A, Shazeer N, Parmar N, et al. Attention is all you need[C]//Advances in neural information processing systems. 2017: 5998-6008.
 
 
 
