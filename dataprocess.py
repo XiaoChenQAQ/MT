@@ -1,4 +1,5 @@
 import numpy as np
+from torch.utils import data as Data
 
 class Tokenizer:
     '''
@@ -10,11 +11,11 @@ class Tokenizer:
     5.depadding
     4.debpe过程
     '''
-    def __init__(self, bpevocab_path) -> None:
+    def __init__(self, bpevocab_path="./data/bpevocab.txt") -> None:
         self.token2index , self.index2token = self.make_dict(bpevocab_path)
         
 
-    def make_dict(bpevocab_path):
+    def make_dict(self, bpevocab_path):
         '''
         用bpe分词生成token2index字典
         输入:bpe分词文件路径
@@ -37,7 +38,8 @@ class Tokenizer:
         print("from token list(len({0}),make a dict(len({1})))".format(len(list_token),len(token2index)))
         return token2index,index2token
         
-    def encoder_sentence(self, sentences):
+    def encoder_sentence(self, sentences, max_len=256):
+        '''把句子编码并pad'''
         seq = []
         for sentence in sentences:
             encoder = []
@@ -68,29 +70,59 @@ class Tokenizer:
         sentences_list = self.decoder_sentence(seq)
         ...
 
-    def padding(self, sentence, pad_num=0, max_len=512):
+    def padding(self, sentence, pad_idx=0, max_len=32):
         '''
         padding,统一input长度
         '''
-        mask = np.zeros((len(sentence), max_len), dtype="int32")
+        pad = np.zeros((len(sentence), max_len), dtype="int32")
         for i, seq in enumerate(sentence):
             seq_len = len(seq)
             if seq_len > max_len:
-                mask[i, :] = seq[:max_len]
+                pad[i, :] = seq[:max_len]
             else:
-                mask[i, :seq_len] = seq
-        return mask
+                pad[i, :seq_len] = seq
+        return pad
 
-    def depadding(self, sentence, pad_num=0, max_len=512):
+    def depadding(self, sentence, pad_idx=0, max_len=32):
         '''
         depadding,
         '''
-        mask = np.zeros((len(sentence), max_len), dtype="int32")        
-        for i, seq in enumerate(sentence):
-            seq_len = len(seq)
-            if seq_len > max_len:
-                mask[i, :] = seq[:max_len]
-            else:
-                mask[i, :seq_len] = seq
-        return mask
+        ...
+# 构建数据集
+# 张译有很好的,但我看不懂
+class MyData(Data.Dataset):
+    def __init__(self, de_train_data, en_train_data, bpevocab):
+        self.de_train_data = self._read_file(de_train_data)
+        self.en_train_data = self._read_file(en_train_data)
+        self.token = Tokenizer(bpevocab)
 
+    def __getitem__(self, index):
+        de_sentence = self.de_train_data[index]
+        en_sentence = self.en_train_data[index]
+        de_sentence = de_sentence.rstrip()
+        en_sentence = en_sentence.rstrip()
+        de_sentence = self.token.encoder_sentence([de_sentence])
+        de_sentence = self.token.padding(de_sentence)
+        en_sentence = self.token.encoder_sentence([en_sentence])
+        #头截断和尾截断
+        en_sentence1 = [en_sentence[0][:-1]]
+        en_sentence2 = [en_sentence[0][1:]]
+        en_sentence1 = self.token.padding(en_sentence1)
+        en_sentence2 = self.token.padding(en_sentence2)
+
+        return np.int32(de_sentence[0, :]), np.int32(en_sentence1[0, :]), np.int64(en_sentence2[0, :])
+
+    def __len__(self):
+        return len(self.de_train_data)
+    def _read_file(self, path):
+        with open(path, "r", encoding="utf-8") as f:
+            rf = f.readlines()
+        return rf
+
+if __name__ == '__main__':
+    print('hello')
+    token = Tokenizer()
+    data = token.encoder_sentence(["und sie fi@@ cht natürlich die wichtigste voraus@@ setzung von allen an , dass geschäft geschäft ist , und phil@@ anth@@ rop@@ ie ist das instrument der menschen , die die welt verändern wollen ."])
+    print(data)
+    data = token.padding(data)
+    print(data)

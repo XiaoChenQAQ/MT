@@ -1,8 +1,24 @@
 import numpy as np
 import torch
 import os
-from transformer import transformer
+from torch.utils import data as Data
+from torch import nn
+from torch.optim import Adam
+from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.optimizer import Optimizer
+from torch.utils.data.dataloader import DataLoader
+from dataprocess import MyData,Tokenizer
+from transformer import Transformer
+from tqdm import tqdm
+import math
 
+
+
+#GPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(device)
+
+#数据路径
 data_path = "./data/"
 bpevocab_path = data_path+"bpevocab.txt"
 train_de = data_path+"train_de.txt"
@@ -11,98 +27,145 @@ valid_de = data_path+"valid_de.txt"
 valid_en = data_path+"valid_en.txt"
 print("file path:"+valid_en)
 
-# make token to index 
-list_token = []
-with open(bpevocab_path,'r', encoding='utf-8') as f:
-    for i,line in enumerate(f):
-        list_token.append(line.split()[0])
-    print(len(list_token))
-    token2index = {token:i+4 for i,token in enumerate(list_token)}
-    index2token = {i+4:token for i,token in enumerate(list_token)}
-    token2index["<pad>"] = 0
-    index2token[0] = "<pad>"
-    token2index["<unk>"] = 1
-    index2token[1] = "<unk>"
-    token2index["<sos>"] = 2
-    index2token[2] = "<sos>"
-    token2index["<eos>"] = 3
-    index2token[3] = "<eos>"
 
 
-# 构建自己的数据集
-class Data(Data.Dataset):
-    def __init__(self, de_train_data, en_train_data):
-        self.de_train_data = de_train_data
-        self.en_train_data = en_train_data
-
-    def __getitem__(self, index):
-        de_sentence = self.de_train_data[index]
-        en_sentence = self.en_train_data[index]
-        de_sentence = de_sentence.rstrip()
-        en_sentence = en_sentence.rstrip()
-        de_sentence = token.encoder_sentence([de_sentence])
-        de_sentence = token.de_padding(de_sentence)
-        en_sentence = token.encoder_sentence([en_sentence])
-        en_sentence1 = [en_sentence[0][:-1]]
-        en_sentence2 = [en_sentence[0][1:]]
-        en_sentence1 = token.en_padding(en_sentence1)
-        en_sentence2 = token.en_padding(en_sentence2)
-
-        return np.int32(de_sentence[0, :]), np.int32(en_sentence1[0, :]), np.int64(en_sentence2[0, :])
-
-    def __len__(self):
-        return len(self.de_train_data)
 
 def train():
-    total_loss = 0
-    total_sample = 0
+    testloss = 0
+    batch_size = 1024
+    lr = 0.0001
+    dict_number = 10148
+    epochs = 15
+    n_layers = 6
+    seq_len = 32
+    heads =4
+    d_model = 512
+    norm_shape = [seq_len, d_model]
+    #创建数据
+    train_data = MyData(train_de, train_en, bpevocab_path)
+    train_data = Data.DataLoader(train_data, shuffle=True, batch_size=batch_size, num_workers=0, pin_memory=True)
+    valid_data = MyData(valid_de, valid_en, bpevocab_path)
+    valid_data = Data.DataLoader(valid_data, shuffle=False, batch_size=batch_size, num_workers=0, pin_memory=True)
+
+    # 创建网络
+    model = Transformer(n_layers, dict_number, seq_len, heads, d_model, norm_shape)
+    # model.load_state_dict(torch.load("de_to_en_2.pkl", map_location=torch.device(device)))
+
+    #训练阶段
     model.train()
-    optim.zero_grad()
-    ppl = 0
-    training_epoch = 0
-    for ind, samples in enumerate(tqdm(train_data)):  # Training
-        samples = samples.to(device).get_batch()
-        ind = ind + 1
-        loss, logging_info = criteration(model, **samples)
-        sample_size = logging_info["valid tokens num"]
-        ppl += logging_info["ppl"]
-        training_epoch += 1
-        loss.backward()
-        if ind % update_freq == 0:
-            optim.step()
-            scheduler.step()
-            optim.zero_grad()
-        total_loss += float(loss)
-        total_sample += int(sample_size)
+    print("*"*80)
+    print("training")
+    model.to(device)
+    torch.cuda.empty_cache()
+    # 初始化参数
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_fc = nn.CrossEntropyLoss(ignore_index=0)
+    nb = len(train_data)
+    # old_loss_time = None
 
-        if (ind // update_freq) % 100 == 0 and ind % update_freq == 0:
-            print(
-                f"Epoch: {epoch} Training loss: {float(total_loss) / total_sample} ppl: {ppl/training_epoch} lr: {float(optim.param_groups[0]['lr'])}"
-            )
-            total_loss = 0
-            total_sample = 0
-            ppl = 0
-            training_epoch = 0
+    all_accuracy = 0
+    all_step = 0
+    for epoch in range(1, epochs):
+        old_loss_time = None
+        pbar = tqdm(train_data, total=nb)
+        optimizer.zero_grad()
+        for step, (x, x_y, y) in enumerate(pbar):
+            all_step += 1
+            x = x.long()
+            y = y.long()
+            x_y = x_y.long()
+            x = x.to(device)
+            x_y = x_y.to(device)
+            y = y.to(device)
+            y = y.view(-1)
+            logits = model(x, x_y)
+            adjust_learning_rate(512, all_step, optimizer)
+            lr = optimizer.state_dict()['param_groups'][0]['lr']
+            logits = logits.view(-1, logits.shape[-1])
+            all_accuracy += calculate_accuracy(logits, y)
+            loss = loss_fc(logits, y)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+            if old_loss_time is None:
+                loss_time = loss
+                old_loss_time = loss
+            else:
+                old_loss_time += loss
+                loss_time = old_loss_time / (step + 1)
+            s = (
+                "train ===> epoch: {} ---- step: {} ---- loss: {:.4f} ---- loss_time: {:.4f} ---- train_accuracy: {:.4f}% ---- lr: {:.6f}".format(
+                    epoch, step, loss,
+                    loss_time, all_accuracy / (step + 1), lr))
+            pbar.set_description(s)
 
-    with torch.no_grad():  # Validating
-        total_loss = 0
-        total_sample = 0
+            if ((step + 1) % 5 == 0):
+                torch.save(model.state_dict(), "./weights/de2en_5epoch.pkl")
+
+        #eval,算验证集上的效果
         model.eval()
-        for samples in tqdm(valid_data):
-            samples = samples.to(device).get_batch()
-            loss, logging_info = criteration(model, **samples)
-            sample_size = logging_info["valid tokens num"]
-            ppl += logging_info["ppl"]
-            training_epoch += 1
-            total_loss += loss
-            total_sample += sample_size
-        print(
-            f"Epoch: {epoch} Valid loss: {float(total_loss / total_sample)} ppl: {ppl/training_epoch}"
-        )
+        validstep = 0
+        total_loss = 0
+        count_loss = 0
+        valid_accuracy = 0
+        with torch.no_grad():
+            for x, x_y, y in valid_data:
+                validstep += 1
+                x = x.long()
+                y = y.long()
+                x_y = x_y.long()
+                x = x.to(device)
+                x_y = x_y.to(device)
+                y = y.to(device)
+                y = y.view(-1)
+                valid_output = model(x, x_y)
+                valid_output = valid_output.view(-1, valid_output.shape[-1])
+                valid_accuracy += calculate_accuracy(valid_output, y)
+                valid_loss = loss_fc(valid_output, y)
+                total_loss += valid_loss.item()
+                count_loss += 1
+            if testloss > float(total_loss / count_loss):
+                testloss = float(total_loss / count_loss)
+                torch.save(model.state_dict(), "./weight/de_to_en_test.pkl")
+            print(f'\nValidating at epoch', '%04d:' % (epoch + 1), 'loss:',
+                  '{:.6f},'.format(total_loss / count_loss),
+                  'ppl:', '{:.6}'.format(math.exp(total_loss / count_loss)), 'valid_accuracy:',
+                  '{:.4f}%,'.format(valid_accuracy / validstep))
+            print("step=", validstep)
+        torch.save(model.state_dict(), "./weight/de2en_" + str(epoch) + ".pkl")
 
-    with open(os.path.join(save_dir, f"epoch{epoch}.pt"), "wb") as fl:
-        torch.save(model, fl)
 
+def calculate_accuracy(model_predict, target, ignore_index=0):
+    # target中 非0的地方填充为1
+    non_pad_mask = target.ne(ignore_index)
+    # 得到target中1的数量，即有效的词的数量
+    word_num = non_pad_mask.sum().item()
+    # 得到预测正确的数量
+    predict_correct_num = model_predict.max(dim=-1).indices.eq(target).masked_select(non_pad_mask).sum().item()
+    return predict_correct_num / word_num * 100
+def adjust_learning_rate(d_model, step, optimizer, warmup_steps=1000 * 8):
+    lr = 1 / math.sqrt(d_model) * min(math.pow(step, -0.5), step * math.pow(warmup_steps, -1.5))
+    for param_group in optimizer.param_groups:
+        # 在每次更新参数前迭代更改学习率
+        param_group["lr"] = lr
 
+#复制的别人的,我看不懂
+# def bleu(pred_seq, label_seq, k):
+#     """Compute the BLEU."""
+#     pred_tokens, label_tokens = pred_seq.split(' '), label_seq.split(' ')
+#     len_pred, len_label = len(pred_tokens), len(label_tokens)
+#     score = math.exp(min(0, 1 - len_label / len_pred))
+#     for n in range(1, k + 1):
+#         num_matches, label_subs = 0, collections.defaultdict(int)
+#         for i in range(len_label - n + 1):
+#             label_subs[''.join(label_tokens[i:i + n])] += 1
+#         for i in range(len_pred - n + 1):
+#             if label_subs[''.join(pred_tokens[i:i + n])] > 0:
+#                 num_matches += 1
+#                 label_subs[''.join(pred_tokens[i:i + n])] -= 1
+#         score *= math.pow(num_matches / (len_pred - n + 1), math.pow(0.5, n))
+#     return score
 
+if __name__ == "__main__":
+    train()
     
