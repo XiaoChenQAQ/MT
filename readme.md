@@ -34,6 +34,7 @@ Transformer 模型仅仅使用自注意力机制和标准的前馈神经网络,�
 
 ### 嵌入层和位置编码层
 嵌入层和位置编码层将编码器输入和解码器输入序列变成向量表示.
+
 ####嵌入层
 使用pytorch的Embedding()函数实现嵌入
 ####位置编码
@@ -102,6 +103,115 @@ self.register_parameter('multihead_proj_weight', None)
 这样切分后的qkv向量进行运算后在连接起来可以获得一个(1,heads*d_k)的向量并且(heads*d_k=d_model),对输出向量右乘一个输出矩阵W(d_model,d_model)获得最终多头注意力机制的score.
 **但这样写的权重好像不会参与训练,所以我按照[d2l](https://zh-v2.d2l.ai/chapter_attention-mechanisms/transformer.html)里的多头网络写法改写了多头注意力的分片方法**
 
+```
+
+class MultiHeadAttention(nn.Module):
+    ''' 
+    基于点乘的多头注意力层;
+    Q的维度(L,d_k),V的维度(L,d_k),V的维度(L,d_v);d_k,d_v分别表示key和value的大小,通常设置d_k=d_v=d_model
+    输入:(batch_size, seq_len, d_model)
+    输出:(batch_size, seq_len, d_model)
+    问题:dropout不知道在哪加
+    '''
+    def __init__(self, seq_len,heads, d_model, d_k=None, d_v=None, dropout=0.1, decode=False):
+        super(MultiHeadAttention, self).__init__()
+        self.d_k = d_model if not d_k else d_k
+        self.d_v = d_model if not d_v else d_v
+        self.heads = heads
+        self.head_dim = d_model // heads
+        self.seq_len = seq_len
+        assert self.head_dim * heads == d_model ,"heads必须能整除d_model"
+        self.Q = nn.Linear(d_model,d_k, bias=False)
+        self.K = nn.Linear(d_model,d_k, bias=False)
+        self.V = nn.Linear(d_model,d_v, bias=False)
+        # 这样写的权重好像不参与训练,改成mxnet里的实现了
+        # self.W_Q = nn.Parameter(data=torch.tensor(heads, d_model, d_k//heads),requires_grad=True)
+        # self.W_K = nn.Parameter(data=torch.tensor(heads, d_model, d_k//heads),requires_grad=True)
+        # self.W_V = nn.Parameter(data=torch.tensor(heads, d_model, d_v//heads),requires_grad=True)
+        # self.register_parameter('multihead_proj_weight', None)
+        self.dropout = nn.Dropout(dropout)
+        self.outputlinear = nn.Linear(d_k,d_model)
+        self.decode = decode
+        #解码器需要future-mask
+        if not decode:
+            self.mask = None
+        else:
+            self.mask = self._make_mask(seq_len).to(device)
+        self.softmax = nn.Softmax(dim=-1)
+            
+
+    def _make_mask(self, dim):
+        matirx = np.ones((dim, dim))
+        mask = torch.Tensor(np.tril(matirx))
+        return mask==0
+
+    def _dotmulAtt(self, q, k, v, mask):
+        '''
+        q,k,v向量点乘注意力
+        q,k,v输入维度(batch_size * heads,seq_len,head_dim)
+        返回维度:(batch_size * heads ,seq_len, head_dim)
+        '''
+        d = q.shape[-1]
+
+        scores = torch.bmm(q, k.transpose(1, 2)) / math.sqrt(d)
+        # print("dot_att_scores")
+        # print(scores[0])
+        # print("*"*80)
+        self.attention_weights = self.softmax(scores.masked_fill(mask.unsqueeze(1).expand((-1, self.heads, -1, -1)).reshape(-1, self.seq_len, self.seq_len), value=float("-inf")))
+        
+        # print("dot_att_weights")
+        # #print(scores.masked_fill(mask.unsqueeze(1).expand((-1, self.heads, -1, -1)).reshape(-1, self.seq_len, self.seq_len), value=float("-inf"))[0])
+        # print(self.attention_weights[0])
+        # print("*"*80)
+        return torch.bmm(self.dropout(self.attention_weights), v)
+
+    def _transpose_qkv(self, X, num_heads): 
+        '''qkv变换分片,以引用多头注意力机制'''
+        X = X.reshape(X.shape[0], X.shape[1], num_heads, -1)      
+        X = X.permute(0, 2, 1, 3)
+        return X.reshape(-1, X.shape[2], X.shape[3])
+    def _transpose_output(self, X, num_heads):
+        '''逆变换,使output和输入shape相同'''
+        X = X.reshape(-1, num_heads, X.shape[1], X.shape[2])
+        X = X.permute(0, 2, 1, 3)
+        return X.reshape(X.shape[0], X.shape[1], -1)
+    
+    def get_attention_weights(self):
+        return self.attention_weights
+    
+    def forward(self, q, k, v, mask):
+        # print("att_in")
+        # print(q)
+        # print("*"*80)
+        # 将XY仿射变换成QKV
+        # t=self.Q(q.float())
+        # print(t.dtype,t.shape)
+        # print(len(t))
+        # print(t[0].type, t[1].type)
+        # print("*"*80)
+        Q = self._transpose_qkv(self.Q(q), self.heads)
+        K = self._transpose_qkv(self.K(k), self.heads)
+        V = self._transpose_qkv(self.V(v), self.heads)
+        # print("att_in")
+        # print(Q)
+        # print("*"*80)
+        #点积注意力,mask好像有bug
+        if self.decode:
+            #解码器,有future_mask和padding_mask
+            output = self._dotmulAtt(Q, K, V, mask|self.mask)
+        else:
+            #编码器,只有padding_mask
+            output = self._dotmulAtt(Q, K, V, mask)
+        #concat
+        output_concat = self._transpose_output(output, self.heads)
+        # print("att_out")
+        # print(output_concat[0])
+        # print("*"*80)
+        return self.outputlinear(output_concat)
+
+
+```
+
 新的方法实现方法是:将变换后的QKV使用一个变换函数分片(而不是用不同的权重去成),然后直接应用点积注意力机制计算,最后再逆变换回原来的shape.通过一个线性层输出
 最终输出的矩阵O大小应为(batch_size, seq_len, d_model),并且为了方便显示注意力机制也可以输出一个注意力权重矩阵.
 
@@ -129,12 +239,10 @@ def _make_padding_mask(self, seq, seq_len, pad=0):
 
 #### 
 ### Encode块
-结合前面写的部分,直接像拼积木一样拼起来就行了,论文里使用了6个encode块和6个decoder块
-
+结合前面写的部分,直接像拼积木一样拼起来就行了,论文里使用了6个encode块和6个decoder块,直接一个接一个连起来就行了
 ### Docoder
 解码器也类似Encoder堆积木,但是Encoder-decoder在写的时候有一些问题:
 - 这一模块的qkv不同,q是解码器每个位置的表示,kv变成了编码器每个位置的表示
-- 在训练阶段和eval阶段,这一模块的运算逻辑是不同的
 
 
 
