@@ -2,17 +2,17 @@
 作者:尹张森,2101839
 本项目使用pytorch框架实现[transformer](https://arxiv.org/abs/1706.03762)[1]
 
-## 结果展示
-
-```
-
-```
-
 ## 1.数据集和数据处理
 
 使用预处理好的IWSLT’14 De-En数据集,源语言德语目标语言英语,使用双字节编码分词.
-
-实现一个自己的DataSet,DataLoader就行了
+先写一个Tokenizer类生成字典,并且有以下功能
+1.读取bpe表生成word2idx_dict,idx2word_dict
+2.句子编码,词表里没有的词用<unk>替换
+3.句子解码,用上面的字典idx2word
+4.padding,padding后输入进
+5.depadding
+4.debpe过程
+然后用torch.utils实现一个自己的DataSet,DataLoader就行了
 
 
 ## 2.Transformer
@@ -161,7 +161,7 @@ norm_shape = [seq_len, d_model]
 可以帮助模型更快的收敛而不是不断震荡
 
 ### 训练结果
-虽然句子长度选的短就32截断了很多句子,但是感觉ppl的计算有点问题
+虽然句子长度选的短就32截断了很多句子,但是感觉ppl = math.exp(total_loss / count_loss)的计算有点问题(后来检查了,确实有问题,输出结果特别拉很反常)
 ```
 Validating at epoch 0002: loss: 9.050756, ppl: 8524.98
 step= 15
@@ -205,7 +205,17 @@ step= 15
 Validating at epoch 0015: loss: 0.225537, ppl: 1.253,
 step= 15
 ```
-
+感觉seq_len选太小了,有很大问题
+```
+输出语句1
+i in that 50 spring income dna meaning blue spring street is &#93; policy <eos> , <eos> , and by <eos> , , give to a the of . &apos;s war and
+目标语句1
+and now we would like to introdu@@ ce you to jo@@ ey .
+输出语句2
+, gets dna source — fully security — changing gas office — star — known capacity complicated bor@@ <eos> glo@@ order street oil fish &apos;s we the new the . given and
+目标语句2
+so today , i &apos;m going to tell you about some people who didn &apos;t move out of their neighbor@@ ho@@ ods .
+```
 
 
 ## 完成项目时遇到的困难和感想
@@ -230,5 +240,4 @@ step= 15
 [1]Vaswani A, Shazeer N, Parmar N, et al. Attention is all you need[C]//Advances in neural information processing systems. 2017: 5998-6008.
 [2]肖桐 朱靖波，机器翻译：基础与模型，电子工业出版社, 2021.
 [3]https://zh-v2.d2l.ai/chapter_attention-mechanisms/transformer.html
-
 
